@@ -421,7 +421,7 @@ function Dashboard() {
                   >
                     Close
                   </button>
-                </div>
+      </div>
                 <div style={{
                   background: 'rgba(0, 0, 0, 0.2)',
                   borderRadius: '12px',
@@ -520,7 +520,7 @@ function Dashboard() {
                                   }}
                                 >
                                   Delete
-                                </button>
+        </button>
                               </div>
                             </td>
                           )}
