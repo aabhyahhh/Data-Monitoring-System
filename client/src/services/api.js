@@ -1,5 +1,7 @@
+const API_URL = import.meta.env.VITE_API_URL;
+
 export async function login(username, password) {
-  const res = await fetch('http://localhost:5000/login', {
+  const res = await fetch(`${API_URL}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password })
@@ -10,7 +12,7 @@ export async function login(username, password) {
 
 export async function getStoves() {
   const token = localStorage.getItem('token');
-  const res = await fetch('http://localhost:5000/api/stoves', {
+  const res = await fetch(`${API_URL}/api/stoves`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   if (!res.ok) throw new Error('Failed to fetch stoves');
@@ -19,7 +21,7 @@ export async function getStoves() {
 
 export async function addStove(data) {
   const token = localStorage.getItem('token');
-  const res = await fetch('http://localhost:5000/api/stoves', {
+  const res = await fetch(`${API_URL}/api/stoves`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,7 +35,7 @@ export async function addStove(data) {
 
 export async function updateStove(id, data) {
   const token = localStorage.getItem('token');
-  const res = await fetch(`http://localhost:5000/api/stoves/${id}`, {
+  const res = await fetch(`${API_URL}/api/stoves/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -47,7 +49,7 @@ export async function updateStove(id, data) {
 
 export async function getLogsByStoveId(stove_id) {
   const token = localStorage.getItem('token');
-  const res = await fetch(`http://localhost:5000/api/stoves/by-stoveid/${stove_id}`, {
+  const res = await fetch(`${API_URL}/api/stoves/by-stoveid/${stove_id}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   if (!res.ok) throw new Error('Failed to fetch logs');
