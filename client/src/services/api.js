@@ -54,4 +54,13 @@ export async function getLogsByStoveId(stove_id) {
   });
   if (!res.ok) throw new Error('Failed to fetch logs');
   return res.json();
+}
+
+export async function getCookingSessionsLast24h() {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/api/stoves/logs/last24h/count`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch cooking sessions count');
+  return res.json();
 } 

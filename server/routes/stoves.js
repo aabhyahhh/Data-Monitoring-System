@@ -36,6 +36,21 @@ router.get('/stoves/by-stoveid/:stove_id', verifyToken, async (req, res) => {
   }
 });
 
+// Add this endpoint to count cooking sessions in the last 24 hours
+router.get('/stoves/logs/last24h/count', verifyToken, async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const stoves = await StoveData.find({}, 'logs');
+    let count = 0;
+    stoves.forEach(stove => {
+      count += stove.logs.filter(log => new Date(log.date) >= since).length;
+    });
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /stoves - add new stove (super_admin only)
 router.post('/stoves', verifyToken, requireRole('super_admin'), async (req, res) => {
   try {

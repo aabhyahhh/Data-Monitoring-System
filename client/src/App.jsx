@@ -1,13 +1,16 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { login as apiLogin } from './services/api';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import { getStoves, addStove, updateStove } from './services/api';
-import { useEffect } from 'react';
 import StoveForm from './StoveForm';
 import { getLogsByStoveId } from './services/api';
 import Unauthorized from './Unauthorized';
+import Sidebar from './components/Sidebar';
+import { FiUser, FiShoppingCart, FiDollarSign, FiBox, FiClock } from 'react-icons/fi';
+import UsersPage from './components/UsersPage';
+import { getCookingSessionsLast24h } from './services/api';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -94,7 +97,13 @@ function Login() {
 
 function Dashboard() {
   const { role } = useAuth();
-  const [stoves, setStoves] = useState([]);
+  const [stovesCount, setStovesCount] = useState(null);
+  const [sessions24h, setSessions24h] = useState(null);
+  const navigate = useNavigate();
+  useEffect(() => {
+    getStoves().then(stoves => setStovesCount(Array.isArray(stoves) ? stoves.length : 0));
+    getCookingSessionsLast24h().then(res => setSessions24h(res.count));
+  }, []);
   const [error, setError] = useState('');
   const [selectedStove, setSelectedStove] = useState(null);
   const [logs, setLogs] = useState([]);
@@ -102,13 +111,8 @@ function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editLog, setEditLog] = useState(null);
   const [selectedStoveId, setSelectedStoveId] = useState(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    getStoves()
-      .then(setStoves)
-      .catch(() => setError('Failed to fetch stoves'));
-  }, []);
+  // Only declare 'navigate' once in Dashboard
+  // Remove any duplicate 'const navigate = useNavigate();'
 
   async function handleViewLogs(stove) {
     setSelectedStove(stove);
@@ -137,7 +141,7 @@ function Dashboard() {
       setShowForm(false);
       // Refresh stove list
       const updated = await getStoves();
-      setStoves(updated);
+      setStovesCount(Array.isArray(updated) ? updated.length : 0);
     } catch (err) {
       if (err.message.includes('403')) navigate('/unauthorized');
       else alert('Failed to add stove');
@@ -183,356 +187,70 @@ function Dashboard() {
     }
   }
 
-  if (error) return <div>{error}</div>;
-  if (!stoves.length) return <div>Loading...</div>;
-
   // Group stoves by unique stove_id
-  const uniqueStoves = Object.values(stoves.reduce((acc, stove) => {
-    if (!acc[stove.stove_id]) acc[stove.stove_id] = stove;
-    return acc;
-  }, {}));
+  // Remove this from Dashboard:
+  // const uniqueStoves = Object.values(stoves.reduce((acc, stove) => {
+  //   if (!acc[stove.stove_id]) acc[stove.stove_id] = stove;
+  //   return acc;
+  // }, {}));
+
+  // Example stats (replace with real data as needed)
+  const stats = [
+    {
+      label: 'Total Stoves Deployed',
+      value: stovesCount === null ? '...' : stovesCount,
+      sub: (
+        <span style={{ cursor: 'pointer', textDecoration: 'underline', color: '#888' }} onClick={() => navigate('/users')}>
+          See all stoves
+        </span>
+      ),
+      icon: <FiBox size={22} />, // stove icon
+      // growth: '+20%' // removed
+    },
+    {
+      label: 'Cooking Sessions in Last 24 Hours',
+      value: sessions24h === null ? '...' : sessions24h,
+      sub: <span style={{ color: '#888' }}>View all sessions</span>,
+      icon: <FiClock size={22} />, // clock icon
+    },
+    {
+      label: 'Earnings',
+      value: 'ZMK 100',
+      sub: 'View net earnings',
+      icon: <FiDollarSign size={22} />, // right icon
+      growth: '+15%'
+    }
+  ];
 
   return (
     <>
-      {showForm && <StoveForm onClose={() => setShowForm(false)} onSubmit={handleFormSubmit} />}
-      {editLog && <EditLogModal log={editLog} onClose={() => setEditLog(null)} onSubmit={handleEditLogSubmit} />}
-      <div style={{
-        minHeight: '100vh',
-        width: '100vw',
-        background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 0,
-        margin: 0
-      }}>
-        <div style={{
+      {/* Stats cards row */}
+      <div style={{ display: 'flex', gap: 24, marginBottom: 36, justifyContent: 'center', maxWidth: 1200, marginLeft: 'auto', marginRight: 'auto' }}>
+        {stats.map((stat, i) => (
+          <div key={stat.label} style={{
+            flex: 1,
+            background: '#fff',
+            borderRadius: 18,
+            boxShadow: '0 2px 12px 0 rgba(74,144,226,0.07)',
+            padding: '28px 32px 20px 32px',
+            minWidth: 220,
           display: 'flex',
           flexDirection: 'column',
+            justifyContent: 'center',
           alignItems: 'center',
-          justifyContent: 'center',
-          maxWidth: '700px',
-          width: '100%'
-        }}>
-          <h1 style={{
-            color: '#fff',
+            position: 'relative',
+            border: '1px solid #f0f0f0',
+            height: 160,
             textAlign: 'center',
-            marginBottom: '40px',
-            fontSize: '2.5rem',
-            fontWeight: '700',
-            textShadow: '0 2px 10px rgba(0, 0, 0, 0.5)'
           }}>
-            Stove Management Dashboard
-          </h1>
-          {role === 'super_admin' && (
-            <button
-              style={{
-                padding: '14px 32px',
-                fontSize: '1rem',
-                fontWeight: '600',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)',
-                color: '#fff',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 15px rgba(74, 144, 226, 0.3)',
-                marginBottom: '32px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                display: 'block'
-              }}
-              onMouseOver={e => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 25px rgba(74, 144, 226, 0.4)';
-              }}
-              onMouseOut={e => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 15px rgba(74, 144, 226, 0.3)';
-              }}
-              onClick={handleAddEntry}
-            >
-              Add New Entry
-            </button>
-          )}
-          <div style={{
-            background: 'rgba(40, 40, 40, 0.9)',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            width: '100%',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse'
-            }}>
-              <thead>
-                <tr style={{
-                  background: 'linear-gradient(135deg, #333 0%, #444 100%)'
-                }}>
-                  <th style={{
-                    padding: '24px',
-                    fontWeight: '600',
-                    fontSize: '1.1rem',
-                    color: '#fff',
-                    textAlign: 'left',
-                    borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
-                  }}>Stove ID</th>
-                  <th style={{
-                    padding: '24px',
-                    fontWeight: '600',
-                    fontSize: '1.1rem',
-                    color: '#fff',
-                    textAlign: 'left',
-                    borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
-                  }}>Location</th>
-                  <th style={{
-                    padding: '24px',
-                    fontWeight: '600',
-                    fontSize: '1.1rem',
-                    color: '#fff',
-                    textAlign: 'left',
-                    borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
-                  }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {uniqueStoves.map((stove, index) => (
-                  <tr
-                    key={stove.stove_id}
-                    style={{
-                      background: index % 2 === 0 ? 'rgba(50, 50, 50, 0.5)' : 'rgba(60, 60, 60, 0.5)',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={e => {
-                      e.currentTarget.style.background = 'rgba(74, 144, 226, 0.1)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseOut={e => {
-                      e.currentTarget.style.background = index % 2 === 0 ? 'rgba(50, 50, 50, 0.5)' : 'rgba(60, 60, 60, 0.5)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    <td style={{
-                      padding: '20px 24px',
-                      color: '#fff',
-                      fontSize: '1rem',
-                      fontWeight: '500'
-                    }}>{stove.stove_id}</td>
-                    <td style={{
-                      padding: '20px 24px',
-                      color: '#fff',
-                      fontSize: '1rem',
-                      fontWeight: '500'
-                    }}>{stove.location}</td>
-                    <td style={{padding: '20px 24px'}}>
-                      <button
-                        onClick={() => handleViewLogs(stove)}
-                        style={{
-                          padding: '10px 20px',
-                          borderRadius: '8px',
-                          background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-                          color: '#fff',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '0.9rem',
-                          fontWeight: '500',
-                          transition: 'all 0.3s ease',
-                          boxShadow: '0 2px 8px rgba(40, 167, 69, 0.3)'
-                        }}
-                        onMouseOver={e => {
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 4px 15px rgba(40, 167, 69, 0.4)';
-                        }}
-                        onMouseOut={e => {
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 2px 8px rgba(40, 167, 69, 0.3)';
-                        }}
-                      >
-                        View Logs
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {showModal && (
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: '20px'
-            }}>
-              <div style={{
-                background: 'rgba(40, 40, 40, 0.95)',
-                borderRadius: '20px',
-                minWidth: '800px',
-                maxWidth: '95vw',
-                maxHeight: '90vh',
-                overflow: 'auto',
-                position: 'relative',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
-                <div style={{
-                  padding: '32px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <h3 style={{
-                    color: '#fff',
-                    margin: 0,
-                    fontSize: '1.8rem',
-                    fontWeight: '600'
-                  }}>
-                    Logs for Stove {selectedStoveId}
-                  </h3>
-                  <button
-                    onClick={closeModal}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      border: 'none',
-                      color: '#fff',
-                      padding: '10px 16px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '1rem',
-                      fontWeight: '500',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={e => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-                    onMouseOut={e => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
-                  >
-                    Close
-                  </button>
-      </div>
-                <div style={{
-                  background: 'rgba(0, 0, 0, 0.2)',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                  margin: '32px'
-                }}>
-                  <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                    <thead>
-                      <tr style={{background: 'linear-gradient(135deg, #333 0%, #444 100%)'}}>
-                        <th style={{
-                          padding: '18px 16px',
-                          textAlign: 'center',
-                          color: '#fff',
-                          fontWeight: '600',
-                          fontSize: '0.95rem',
-                          borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
-                        }}>Date</th>
-                        <th style={{padding: '18px 16px', textAlign: 'center', color: '#fff', fontWeight: '600', fontSize: '0.95rem', borderBottom: '2px solid rgba(255, 255, 255, 0.1)'}}>Start</th>
-                        <th style={{padding: '18px 16px', textAlign: 'center', color: '#fff', fontWeight: '600', fontSize: '0.95rem', borderBottom: '2px solid rgba(255, 255, 255, 0.1)'}}>End</th>
-                        <th style={{padding: '18px 16px', textAlign: 'center', color: '#fff', fontWeight: '600', fontSize: '0.95rem', borderBottom: '2px solid rgba(255, 255, 255, 0.1)'}}>Duration</th>
-                        <th style={{padding: '18px 16px', textAlign: 'center', color: '#fff', fontWeight: '600', fontSize: '0.95rem', borderBottom: '2px solid rgba(255, 255, 255, 0.1)'}}>Cooking Time</th>
-                        <th style={{padding: '18px 16px', textAlign: 'center', color: '#fff', fontWeight: '600', fontSize: '0.95rem', borderBottom: '2px solid rgba(255, 255, 255, 0.1)'}}>Wattage</th>
-                        {role === 'super_admin' && <th style={{padding: '18px 16px', textAlign: 'center', color: '#fff', fontWeight: '600', fontSize: '0.95rem', borderBottom: '2px solid rgba(255, 255, 255, 0.1)'}}>Actions</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.map((log, i) => (
-                        <tr
-                          key={i}
-                          style={{
-                            background: i % 2 === 0 ? 'rgba(50, 50, 50, 0.3)' : 'rgba(60, 60, 60, 0.3)',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                            transition: 'all 0.3s ease'
-                          }}
-                          onMouseOver={e => {
-                            e.currentTarget.style.background = 'rgba(74, 144, 226, 0.1)';
-                          }}
-                          onMouseOut={e => {
-                            e.currentTarget.style.background = i % 2 === 0 ? 'rgba(50, 50, 50, 0.3)' : 'rgba(60, 60, 60, 0.3)';
-                          }}
-                        >
-                          <td style={{padding: '16px', textAlign: 'center', color: '#fff'}}>{log.date ? formatDate(log.date) : ''}</td>
-                          <td style={{padding: '16px', textAlign: 'center', color: '#fff'}}>{formatTime(log.start_time)}</td>
-                          <td style={{padding: '16px', textAlign: 'center', color: '#fff'}}>{formatTime(log.end_time)}</td>
-                          <td style={{padding: '16px', textAlign: 'center', color: '#fff'}}>{log.duration}</td>
-                          <td style={{padding: '16px', textAlign: 'center', color: '#fff'}}>{log.cooking_time}</td>
-                          <td style={{padding: '16px', textAlign: 'center', color: '#fff'}}>{log.wattage_W}</td>
-                          {role === 'super_admin' && (
-                            <td style={{padding: '16px', textAlign: 'center'}}>
-                              <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                <button
-                                  onClick={() => handleEditLog(log)}
-                                  style={{
-                                    padding: '6px 12px',
-                                    borderRadius: '6px',
-                                    background: 'linear-gradient(135deg, #ffc107 0%, #ffb300 100%)',
-                                    color: '#000',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '500',
-                                    transition: 'all 0.3s ease'
-                                  }}
-                                  onMouseOver={e => {
-                                    e.target.style.transform = 'translateY(-1px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(255, 193, 7, 0.4)';
-                                  }}
-                                  onMouseOut={e => {
-                                    e.target.style.transform = 'translateY(0)';
-                                    e.target.style.boxShadow = 'none';
-                                  }}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteLog(log)}
-                                  style={{
-                                    padding: '6px 12px',
-                                    borderRadius: '6px',
-                                    background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '500',
-                                    transition: 'all 0.3s ease'
-                                  }}
-                                  onMouseOver={e => {
-                                    e.target.style.transform = 'translateY(-1px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.4)';
-                                  }}
-                                  onMouseOut={e => {
-                                    e.target.style.transform = 'translateY(0)';
-                                    e.target.style.boxShadow = 'none';
-                                  }}
-                                >
-                                  Delete
-        </button>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            <div style={{ width: '100%', fontWeight: 700, fontSize: '1.25rem', color: '#222', marginBottom: 12, textAlign: 'center' }}>{stat.label}</div>
+            <div style={{ fontSize: 40, fontWeight: 700, color: '#222', marginBottom: 18 }}>{stat.value}</div>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 15, color: '#888', width: '100%' }}>
+              <span>{stat.sub}</span>
+              <span style={{ color: '#bbb', marginLeft: 8 }}>{stat.icon}</span>
             </div>
-          )}
         </div>
+        ))}
       </div>
     </>
   );
@@ -616,6 +334,17 @@ function formatTime(timeStr) {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
+function AppLayout({ children }) {
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f7faff' }}>
+      <Sidebar />
+      <div style={{ marginLeft: 240, flex: 1, minHeight: '100vh', background: '#f7faff' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -625,7 +354,16 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={
             <PrivateRoute>
+              <AppLayout>
               <Dashboard />
+              </AppLayout>
+            </PrivateRoute>
+          } />
+          <Route path="/users" element={
+            <PrivateRoute>
+              <AppLayout>
+                <UsersPage />
+              </AppLayout>
             </PrivateRoute>
           } />
           <Route path="/unauthorized" element={<Unauthorized />} />
