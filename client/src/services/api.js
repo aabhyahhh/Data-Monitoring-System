@@ -63,4 +63,13 @@ export async function getCookingSessionsLast24h() {
   });
   if (!res.ok) throw new Error('Failed to fetch cooking sessions count');
   return res.json();
+}
+
+export async function getTotalCookingMinutes() {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/api/stoves/logs/total-cooking-minutes`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch total cooking minutes');
+  return res.json();
 } 

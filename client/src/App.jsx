@@ -11,6 +11,7 @@ import Sidebar from './components/Sidebar';
 import { FiUser, FiShoppingCart, FiDollarSign, FiBox, FiClock } from 'react-icons/fi';
 import UsersPage from './components/UsersPage';
 import { getCookingSessionsLast24h } from './services/api';
+import { getTotalCookingMinutes } from './services/api';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -99,10 +100,12 @@ function Dashboard() {
   const { role } = useAuth();
   const [stovesCount, setStovesCount] = useState(null);
   const [sessions24h, setSessions24h] = useState(null);
+  const [totalMinutes, setTotalMinutes] = useState(null);
   const navigate = useNavigate();
   useEffect(() => {
     getStoves().then(stoves => setStovesCount(Array.isArray(stoves) ? stoves.length : 0));
     getCookingSessionsLast24h().then(res => setSessions24h(res.count));
+    getTotalCookingMinutes().then(res => setTotalMinutes(res.totalMinutes));
   }, []);
   const [error, setError] = useState('');
   const [selectedStove, setSelectedStove] = useState(null);
@@ -205,21 +208,19 @@ function Dashboard() {
         </span>
       ),
       icon: <FiBox size={22} />, // stove icon
-      // growth: '+20%' // removed
     },
     {
       label: 'Cooking Sessions in Last 24 Hours',
       value: sessions24h === null ? '...' : sessions24h,
-      sub: <span style={{ color: '#888' }}>View all sessions</span>,
+      sub: null, // removed subtext
       icon: <FiClock size={22} />, // clock icon
     },
     {
-      label: 'Earnings',
-      value: 'ZMK 100',
-      sub: 'View net earnings',
-      icon: <FiDollarSign size={22} />, // right icon
-      growth: '+15%'
-    }
+      label: 'Minutes Cooked on Solar Cookstove',
+      value: totalMinutes === null ? '...' : totalMinutes,
+      sub: null, // removed subtext
+      icon: <FiClock size={22} />, // clock icon
+    },
   ];
 
   return (

@@ -51,6 +51,20 @@ router.get('/stoves/logs/last24h/count', verifyToken, async (req, res) => {
   }
 });
 
+// Add this endpoint to get total cooking minutes
+router.get('/stoves/logs/total-cooking-minutes', verifyToken, async (req, res) => {
+  try {
+    const stoves = await StoveData.find({}, 'logs');
+    let totalMinutes = 0;
+    stoves.forEach(stove => {
+      totalMinutes += stove.logs.reduce((sum, log) => sum + (log.cooking_time || 0), 0);
+    });
+    res.json({ totalMinutes });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /stoves - add new stove (super_admin only)
 router.post('/stoves', verifyToken, requireRole('super_admin'), async (req, res) => {
   try {
