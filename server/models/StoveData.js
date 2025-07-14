@@ -12,6 +12,8 @@ const logSchema = new mongoose.Schema({
 const stoveDataSchema = new mongoose.Schema({
   stove_id: { type: String, required: true },
   location: { type: String, required: true },
+  latitude: { type: Number },
+  longitude: { type: Number },
   logs: [logSchema]
 });
 

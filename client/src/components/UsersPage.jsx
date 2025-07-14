@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getStoves, addStove, updateStove, getLogsByStoveId } from '../services/api';
+import { getStoves, addStove, updateStove, getLogsByStoveId, deleteStove } from '../services/api';
 import StoveForm from '../StoveForm';
 
 function formatDate(dateStr) {
@@ -92,19 +92,41 @@ export default function UsersPage() {
   }
 
   async function handleDeleteLog(logToDelete) {
+    if (!window.confirm('Delete this log entry? This cannot be undone.')) return;
     try {
-      const newLogs = logs.filter(log => log !== logToDelete);
-      await updateStove(selectedStove._id, { ...selectedStove, logs: newLogs });
-      // Refresh logs from backend
+      // Find all logs for this stoveDocId
+      const stoveDocId = logToDelete.stoveDocId;
+      // Fetch the current logs for this document
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/stoves/${selectedStove._id}`, {
+      const res = await fetch(`http://localhost:5000/api/stoves/${stoveDocId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await res.json();
+      const stoveDoc = await res.json();
+      // Remove the log by matching all fields (date, start_time, end_time, duration, cooking_time, wattage_W)
+      const newLogs = stoveDoc.logs.filter(log =>
+        !(log.date === logToDelete.date &&
+          log.start_time === logToDelete.start_time &&
+          log.end_time === logToDelete.end_time &&
+          log.duration === logToDelete.duration &&
+          log.cooking_time === logToDelete.cooking_time &&
+          log.wattage_W === logToDelete.wattage_W)
+      );
+      await updateStove(stoveDocId, { ...stoveDoc, logs: newLogs });
+      // Refresh logs in modal
+      const data = await getLogsByStoveId(selectedStoveId);
       setLogs(data.logs || []);
     } catch (err) {
-      if (err.message.includes('403')) navigate('/unauthorized');
-      else alert('Failed to delete log');
+      alert('Failed to delete log');
+    }
+  }
+
+  async function handleDeleteStove(stove) {
+    if (!window.confirm(`Delete stove ${stove.stove_id} at ${stove.location}? This cannot be undone.`)) return;
+    try {
+      await deleteStove(stove._id);
+      setStoves(stoves.filter(s => s._id !== stove._id));
+    } catch (err) {
+      alert('Failed to delete stove');
     }
   }
 
@@ -257,6 +279,7 @@ export default function UsersPage() {
                           fontWeight: '600',
                           transition: 'all 0.2s',
                           boxShadow: '0 2px 8px rgba(39,201,122,0.08)',
+                          marginRight: 10
                         }}
                         onMouseOver={e => {
                           e.target.style.transform = 'translateY(-2px)';
@@ -269,6 +292,33 @@ export default function UsersPage() {
                       >
                         View Logs
                       </button>
+                      {role === 'super_admin' && (
+                        <button
+                          onClick={() => handleDeleteStove(stove)}
+                          style={{
+                            padding: '8px 18px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.98rem',
+                            fontWeight: '600',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 8px rgba(220,53,69,0.08)'
+                          }}
+                          onMouseOver={e => {
+                            e.target.style.transform = 'translateY(-2px)';
+                            e.target.style.boxShadow = '0 4px 15px rgba(220,53,69,0.13)';
+                          }}
+                          onMouseOut={e => {
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 2px 8px rgba(220,53,69,0.08)';
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

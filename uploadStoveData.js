@@ -25,17 +25,31 @@ function parseCSV() {
   });
 }
 
+function dmsToDecimal(dms) {
+  // Example: 25°25'52.1"""
+  const match = dms.match(/(\d+)°(\d+)'(\d+(?:\.\d+)?)"/);
+  if (!match) return null;
+  const deg = parseFloat(match[1]);
+  const min = parseFloat(match[2]);
+  const sec = parseFloat(match[3]);
+  return deg + min / 60 + sec / 3600;
+}
+
 function groupByStove(data) {
   // Group by Stove_ID and Location
   const grouped = {};
   data.forEach(row => {
     const stove_id = row['Stove_ID'];
     const location = row['Location (SIM Tower)'];
+    const latitude = dmsToDecimal(row['Latitude']);
+    const longitude = dmsToDecimal(row['Longitude']);
     const key = `${stove_id}||${location}`;
     if (!grouped[key]) {
       grouped[key] = {
         stove_id,
         location,
+        latitude,
+        longitude,
         logs: []
       };
     }

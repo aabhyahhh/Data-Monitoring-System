@@ -12,6 +12,10 @@ import { FiUser, FiShoppingCart, FiDollarSign, FiBox, FiClock } from 'react-icon
 import UsersPage from './components/UsersPage';
 import { getCookingSessionsLast24h } from './services/api';
 import { getTotalCookingMinutes } from './services/api';
+import { FaFire } from 'react-icons/fa';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -102,8 +106,12 @@ function Dashboard() {
   const [sessions24h, setSessions24h] = useState(null);
   const [totalMinutes, setTotalMinutes] = useState(null);
   const navigate = useNavigate();
+  const [stoves, setStoves] = useState([]);
   useEffect(() => {
-    getStoves().then(stoves => setStovesCount(Array.isArray(stoves) ? stoves.length : 0));
+    getStoves().then(stoves => {
+      setStoves(stoves);
+      setStovesCount(Array.isArray(stoves) ? stoves.length : 0);
+    });
     getCookingSessionsLast24h().then(res => setSessions24h(res.count));
     getTotalCookingMinutes().then(res => setTotalMinutes(res.totalMinutes));
   }, []);
@@ -219,9 +227,35 @@ function Dashboard() {
       label: 'Minutes Cooked on Solar Cookstove',
       value: totalMinutes === null ? '...' : totalMinutes,
       sub: null, // removed subtext
-      icon: <FiClock size={22} />, // clock icon
+      icon: <FaFire size={22} />, // flame/cooking icon
     },
   ];
+
+  // Merge stoves by stove_id for map markers
+  const mergedStoves = Object.values(
+    stoves.reduce((acc, stove) => {
+      if (!acc[stove.stove_id]) {
+        acc[stove.stove_id] = {
+          stove_id: stove.stove_id,
+          location: stove.location,
+          latitude: stove.latitude,
+          longitude: stove.longitude,
+          logs: Array.isArray(stove.logs) ? [...stove.logs] : []
+        };
+      } else {
+        // Prefer the entry with latitude/longitude
+        if (stove.latitude && stove.longitude) {
+          acc[stove.stove_id].latitude = stove.latitude;
+          acc[stove.stove_id].longitude = stove.longitude;
+        }
+        // Combine logs
+        if (Array.isArray(stove.logs) && stove.logs.length > 0) {
+          acc[stove.stove_id].logs = acc[stove.stove_id].logs.concat(stove.logs);
+        }
+      }
+      return acc;
+    }, {})
+  );
 
   return (
     <>
@@ -250,8 +284,40 @@ function Dashboard() {
               <span>{stat.sub}</span>
               <span style={{ color: '#bbb', marginLeft: 8 }}>{stat.icon}</span>
             </div>
-        </div>
+          </div>
         ))}
+      </div>
+      {/* Leaflet Map below cards */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 36 }}>
+        <div style={{ width: '100%', maxWidth: 1200, height: 400, borderRadius: 18, overflow: 'hidden', boxShadow: '0 2px 12px 0 rgba(74,144,226,0.07)', border: '1px solid #f0f0f0', background: '#fff' }}>
+          <MapContainer center={[22.9734, 78.6569]} zoom={5} style={{ width: '100%', height: '100%' }} scrollWheelZoom={true}>
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            />
+            {mergedStoves.filter(s => s.latitude && s.longitude).map(stove => (
+              <Marker
+                key={stove.stove_id}
+                position={[stove.latitude, stove.longitude]}
+                icon={L.icon({
+                  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+                  shadowSize: [41, 41]
+                })}
+              >
+                <Popup>
+                  <div style={{minWidth:120}}>
+                    <div><b>Stove ID:</b> {stove.stove_id}</div>
+                    <div><b>Logs:</b> {Array.isArray(stove.logs) ? stove.logs.length : 0}</div>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
       </div>
     </>
   );
