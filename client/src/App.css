@@ -1,17 +1,8 @@
-body {
-  background: #f7faff;
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-  color: #222;
+body, html, #root {
+  background: #f8fafc !important;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
-  min-height: 100vh;
-}
-
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
 }
 
 .logo {
@@ -48,4 +39,43 @@ body {
 
 .read-the-docs {
   color: #888;
+}
+
+.custom-datepicker {
+  padding: 10px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #222;
+  font-size: 1rem;
+  outline: none;
+  margin: 8px 0;
+  box-sizing: border-box;
+}
+
+.custom-datepicker::placeholder {
+  color: #fff;
+  font-style: italic;
+  opacity: 1;
+}
+
+.react-datepicker-wrapper,
+.react-datepicker__input-container input.custom-datepicker {
+  background: #f8fafc;
+  color: #222;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 1rem;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.custom-calendar {
+  font-family: system-ui, sans-serif;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
 }

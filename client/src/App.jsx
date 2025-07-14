@@ -16,6 +16,7 @@ import { FaFire } from 'react-icons/fa';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import marker from './assets/marker.png';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -41,7 +42,7 @@ function Login() {
     <div style={{
       minHeight: '100vh',
       width: '100vw',
-      background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -49,26 +50,26 @@ function Login() {
       margin: 0
     }}>
       <form onSubmit={handleSubmit} style={{
-        background: 'rgba(40, 40, 40, 0.95)',
+        background: '#fff',
         borderRadius: 20,
         minWidth: 350,
         maxWidth: '95vw',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        padding: 36,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        border: '1px solid #e2e8f0',
+        padding: 40,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center'
+        alignItems: 'center',
+        gap: 24
       }}>
-        <h2 style={{color:'#fff',marginBottom:32,fontSize:'2rem',fontWeight:700,textShadow:'0 2px 10px rgba(0,0,0,0.5)'}}>Login</h2>
-        <div style={{width:'100%',marginBottom:18}}>
-          <label style={{color:'#fff',fontWeight:500,marginBottom:8,display:'block'}}>Username:</label>
-          <input value={username} onChange={e => setUsername(e.target.value)} required style={{width:'100%',padding:'10px',borderRadius:6,border:'1px solid #444',background:'#222',color:'#fff',fontSize:'1rem'}} />
+        <h2 style={{color:'#1a202c',marginBottom:8,fontSize:'2rem',fontWeight:700,letterSpacing:'-0.02em'}}>Login</h2>
+        <div style={{width:'100%',marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,marginBottom:8,display:'block',fontSize:'1rem'}}>Username:</label>
+          <input value={username} onChange={e => setUsername(e.target.value)} required style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none',transition:'border 0.2s'}} />
         </div>
-        <div style={{width:'100%',marginBottom:24}}>
-          <label style={{color:'#fff',fontWeight:500,marginBottom:8,display:'block'}}>Password:</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={{width:'100%',padding:'10px',borderRadius:6,border:'1px solid #444',background:'#222',color:'#fff',fontSize:'1rem'}} />
+        <div style={{width:'100%',marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,marginBottom:8,display:'block',fontSize:'1rem'}}>Password:</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={{width:'100%',padding:'12px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none',transition:'border 0.2s'}} />
         </div>
         <button type="submit" style={{
           padding: '14px 32px',
@@ -80,21 +81,21 @@ function Login() {
           border: 'none',
           cursor: 'pointer',
           transition: 'all 0.3s ease',
-          boxShadow: '0 4px 15px rgba(74, 144, 226, 0.3)',
+          boxShadow: '0 4px 15px rgba(74, 144, 226, 0.13)',
           marginTop: 8
         }}
         onMouseOver={e => {
           e.target.style.transform = 'translateY(-2px)';
-          e.target.style.boxShadow = '0 6px 25px rgba(74, 144, 226, 0.4)';
+          e.target.style.boxShadow = '0 8px 30px rgba(74, 144, 226, 0.18)';
         }}
         onMouseOut={e => {
           e.target.style.transform = 'translateY(0)';
-          e.target.style.boxShadow = '0 4px 15px rgba(74, 144, 226, 0.3)';
+          e.target.style.boxShadow = '0 4px 15px rgba(74, 144, 226, 0.13)';
         }}
         >
           Login
         </button>
-        {error && <div style={{color:'red',marginTop:18}}>{error}</div>}
+        {error && <div style={{color:'#E74C3C',marginTop:8,fontWeight:500}}>{error}</div>}
       </form>
     </div>
   );
@@ -122,8 +123,6 @@ function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editLog, setEditLog] = useState(null);
   const [selectedStoveId, setSelectedStoveId] = useState(null);
-  // Only declare 'navigate' once in Dashboard
-  // Remove any duplicate 'const navigate = useNavigate();'
 
   async function handleViewLogs(stove) {
     setSelectedStove(stove);
@@ -198,36 +197,32 @@ function Dashboard() {
     }
   }
 
-  // Group stoves by unique stove_id
-  // Remove this from Dashboard:
-  // const uniqueStoves = Object.values(stoves.reduce((acc, stove) => {
-  //   if (!acc[stove.stove_id]) acc[stove.stove_id] = stove;
-  //   return acc;
-  // }, {}));
-
   // Example stats (replace with real data as needed)
   const stats = [
     {
       label: 'Total Stoves Deployed',
       value: stovesCount === null ? '...' : stovesCount,
       sub: (
-        <span style={{ cursor: 'pointer', textDecoration: 'underline', color: '#888' }} onClick={() => navigate('/users')}>
+        <span style={{ cursor: 'pointer', textDecoration: 'underline', color: '#4A90E2', fontWeight: '500' }} onClick={() => navigate('/users')}>
           See all stoves
         </span>
       ),
-      icon: <FiBox size={22} />, // stove icon
+      icon: <FiBox size={20} />,
+      color: '#4A90E2'
     },
     {
       label: 'Cooking Sessions in Last 24 Hours',
       value: sessions24h === null ? '...' : sessions24h,
-      sub: null, // removed subtext
-      icon: <FiClock size={22} />, // clock icon
+      sub: null,
+      icon: <FiClock size={20} />,
+      color: '#27AE60'
     },
     {
       label: 'Minutes Cooked on Solar Cookstove',
       value: totalMinutes === null ? '...' : totalMinutes,
-      sub: null, // removed subtext
-      icon: <FaFire size={22} />, // flame/cooking icon
+      sub: null,
+      icon: <FaFire size={20} />,
+      color: '#E74C3C'
     },
   ];
 
@@ -253,73 +248,215 @@ function Dashboard() {
           acc[stove.stove_id].logs = acc[stove.stove_id].logs.concat(stove.logs);
         }
       }
-      return acc;
+    return acc;
     }, {})
   );
 
   return (
-    <>
-      {/* Stats cards row */}
-      <div style={{ display: 'flex', gap: 24, marginBottom: 36, justifyContent: 'center', maxWidth: 1200, marginLeft: 'auto', marginRight: 'auto' }}>
-        {stats.map((stat, i) => (
-          <div key={stat.label} style={{
-            flex: 1,
-            background: '#fff',
-            borderRadius: 18,
-            boxShadow: '0 2px 12px 0 rgba(74,144,226,0.07)',
-            padding: '28px 32px 20px 32px',
-            minWidth: 220,
-          display: 'flex',
-          flexDirection: 'column',
-            justifyContent: 'center',
-          alignItems: 'center',
-            position: 'relative',
-            border: '1px solid #f0f0f0',
-            height: 160,
-            textAlign: 'center',
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+      padding: '40px clamp(16px, 5vw, 40px)',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      <div style={{
+        width: '100%'
+      }}>
+        {/* Header */}
+        <div style={{
+          textAlign: 'center',
+          marginBottom: '50px'
+        }}>
+          <h1 style={{
+            fontSize: '2.5rem',
+            fontWeight: '700',
+            color: '#1a202c',
+            marginBottom: '10px',
+            letterSpacing: '-0.02em'
           }}>
-            <div style={{ width: '100%', fontWeight: 700, fontSize: '1.25rem', color: '#222', marginBottom: 12, textAlign: 'center' }}>{stat.label}</div>
-            <div style={{ fontSize: 40, fontWeight: 700, color: '#222', marginBottom: 18 }}>{stat.value}</div>
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 15, color: '#888', width: '100%' }}>
-              <span>{stat.sub}</span>
-              <span style={{ color: '#bbb', marginLeft: 8 }}>{stat.icon}</span>
-            </div>
+            Solar Cookstove Dashboard
+          </h1>
+          <p style={{
+            fontSize: '1.1rem',
+            color: '#718096',
+            fontWeight: '400'
+          }}>
+            Monitor and track your solar cooking activities
+          </p>
           </div>
-        ))}
+
+        {/* Stats cards row */}
+            <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '30px',
+          marginBottom: '50px'
+        }}>
+          {stats.map((stat, i) => (
+            <div key={stat.label} style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              padding: '35px 30px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              position: 'relative',
+              border: '1px solid #e2e8f0',
+              minHeight: '180px',
+              textAlign: 'center',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              cursor: 'default'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-5px)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+            }}>
+              {/* Icon with colored background */}
+              <div style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                background: `${stat.color}15`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '20px',
+                color: stat.color
+              }}>
+                {stat.icon}
+              </div>
+              
+                <div style={{
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                color: '#4a5568',
+                marginBottom: '15px',
+                lineHeight: '1.4'
+                  }}>
+                {stat.label}
+              </div>
+              
+              <div style={{
+                fontSize: '3rem',
+                fontWeight: '700',
+                color: '#1a202c',
+                marginBottom: '15px',
+                lineHeight: '1'
+              }}>
+                {stat.value}
       </div>
-      {/* Leaflet Map below cards */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 36 }}>
-        <div style={{ width: '100%', maxWidth: 1200, height: 400, borderRadius: 18, overflow: 'hidden', boxShadow: '0 2px 12px 0 rgba(74,144,226,0.07)', border: '1px solid #f0f0f0', background: '#fff' }}>
-          <MapContainer center={[22.9734, 78.6569]} zoom={5} style={{ width: '100%', height: '100%' }} scrollWheelZoom={true}>
-            <TileLayer
-              attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            />
-            {mergedStoves.filter(s => s.latitude && s.longitude).map(stove => (
-              <Marker
-                key={stove.stove_id}
-                position={[stove.latitude, stove.longitude]}
-                icon={L.icon({
-                  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-                  shadowSize: [41, 41]
-                })}
-              >
-                <Popup>
-                  <div style={{minWidth:120}}>
-                    <div><b>Stove ID:</b> {stove.stove_id}</div>
-                    <div><b>Logs:</b> {Array.isArray(stove.logs) ? stove.logs.length : 0}</div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+              
+              {stat.sub && (
+                <div style={{
+                  fontSize: '0.9rem',
+                  color: '#718096'
+                }}>
+                  {stat.sub}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Map section */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '20px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden',
+          marginBottom: '40px',
+          padding: 0
+        }}>
+          <div style={{
+            padding: '30px 30px 20px 30px',
+            borderBottom: '1px solid #e2e8f0'
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: '600',
+              color: '#1a202c',
+              margin: '0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                background: '#4A90E215',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#4A90E2'
+              }}>
+                🗺️
+              </span>
+              Stove Locations
+            </h2>
+          </div>
+          
+          <div style={{
+            width: '100%',
+            height: '500px',
+            margin: 0,
+            padding: 0,
+            display: 'flex'
+          }}>
+            <MapContainer center={[22.9734, 78.6569]} zoom={5} style={{ flex: 1, height: '100%' }} scrollWheelZoom={true}>
+              <TileLayer
+                attribution='&copy; <a href="https://carto.com/attributions">CLEAN COOKING</a>'
+                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              />
+              {mergedStoves.filter(s => s.latitude && s.longitude).map(stove => (
+                <Marker
+                  key={stove.stove_id}
+                  position={[stove.latitude, stove.longitude]}
+                  icon={L.icon({
+                    iconUrl: marker, // your red pin image
+                    iconSize: [41, 41],
+                    iconAnchor: [20.5, 41], // center bottom of the icon
+                    popupAnchor: [0, -41],  // above the tip
+                    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+                    shadowSize: [41, 41],
+                    shadowAnchor: [13, 41] // matches Leaflet's default shadow position
+                  })}
+                >
+                  <Popup>
+                    <div style={{
+                      minWidth: '150px',
+                      padding: '5px'
+                    }}>
+                      <div style={{
+                        fontWeight: '600',
+                        color: '#1a202c',
+                        marginBottom: '8px',
+                        fontSize: '0.9rem'
+                      }}>
+                        <b>Stove ID:</b> {stove.stove_id}
+                      </div>
+                      <div style={{
+                        color: '#4a5568',
+                        fontSize: '0.85rem'
+                      }}>
+                        <b>Logs:</b> {Array.isArray(stove.logs) ? stove.logs.length : 0}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -403,9 +540,9 @@ function formatTime(timeStr) {
 
 function AppLayout({ children }) {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f7faff' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', width: '100vw', background: '#f7faff' }}>
       <Sidebar />
-      <div style={{ marginLeft: 240, flex: 1, minHeight: '100vh', background: '#f7faff' }}>
+      <div style={{ flex: 1, background: '#f7faff', marginLeft: 240 }}>
         {children}
       </div>
     </div>

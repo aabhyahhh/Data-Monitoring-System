@@ -203,15 +203,21 @@ export default function UsersPage() {
             background: '#fff',
             borderRadius: '18px',
             overflow: 'hidden',
-            boxShadow: '0 2px 12px 0 rgba(74,144,226,0.07)',
+            boxShadow: '0 8px 32px 0 rgba(74,144,226,0.13)', // stronger shadow
             border: '1px solid #f0f0f0',
             width: '100%',
-            maxWidth: 900,
+            maxWidth: 1100, // slightly wider
             margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0',
           }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',
+              textAlign: 'center', // center all content
             }}>
               <thead>
                 <tr style={{
@@ -222,24 +228,27 @@ export default function UsersPage() {
                     fontWeight: '700',
                     fontSize: '1.08rem',
                     color: '#357ABD',
-                    textAlign: 'left',
+                    textAlign: 'center', // center header
                     borderBottom: '2px solid #f0f0f0',
+                    width: '33%',
                   }}>Stove ID</th>
                   <th style={{
                     padding: '20px',
                     fontWeight: '700',
                     fontSize: '1.08rem',
                     color: '#357ABD',
-                    textAlign: 'left',
+                    textAlign: 'center',
                     borderBottom: '2px solid #f0f0f0',
+                    width: '33%',
                   }}>Location</th>
                   <th style={{
                     padding: '20px',
                     fontWeight: '700',
                     fontSize: '1.08rem',
                     color: '#357ABD',
-                    textAlign: 'left',
+                    textAlign: 'center',
                     borderBottom: '2px solid #f0f0f0',
+                    width: '34%',
                   }}>Actions</th>
                 </tr>
               </thead>
@@ -258,67 +267,77 @@ export default function UsersPage() {
                       color: '#222',
                       fontSize: '1rem',
                       fontWeight: '500',
+                      textAlign: 'center',
+                      width: '33%',
                     }}>{stove.stove_id}</td>
                     <td style={{
                       padding: '18px 20px',
                       color: '#222',
                       fontSize: '1rem',
                       fontWeight: '500',
+                      textAlign: 'center',
+                      width: '33%',
                     }}>{stove.location}</td>
-                    <td style={{padding: '18px 20px'}}>
-                      <button
-                        onClick={() => handleViewLogs(stove)}
-                        style={{
-                          padding: '8px 18px',
-                          borderRadius: '8px',
-                          background: 'linear-gradient(90deg, #27c97a 0%, #43e97b 100%)',
-                          color: '#fff',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '0.98rem',
-                          fontWeight: '600',
-                          transition: 'all 0.2s',
-                          boxShadow: '0 2px 8px rgba(39,201,122,0.08)',
-                          marginRight: 10
-                        }}
-                        onMouseOver={e => {
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 4px 15px rgba(39,201,122,0.13)';
-                        }}
-                        onMouseOut={e => {
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 2px 8px rgba(39,201,122,0.08)';
-                        }}
-                      >
-                        View Logs
-                      </button>
-                      {role === 'super_admin' && (
+                    <td style={{
+                      padding: '18px 20px',
+                      textAlign: 'center',
+                      width: '34%',
+                    }}>
+                      <div style={{display:'flex',justifyContent:'center',gap:'16px'}}>
                         <button
-                          onClick={() => handleDeleteStove(stove)}
+                          onClick={() => handleViewLogs(stove)}
                           style={{
                             padding: '8px 18px',
                             borderRadius: '8px',
-                            background: 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)',
+                            background: 'linear-gradient(90deg, #27c97a 0%, #43e97b 100%)',
                             color: '#fff',
                             border: 'none',
                             cursor: 'pointer',
                             fontSize: '0.98rem',
                             fontWeight: '600',
                             transition: 'all 0.2s',
-                            boxShadow: '0 2px 8px rgba(220,53,69,0.08)'
+                            boxShadow: '0 2px 8px rgba(39,201,122,0.08)',
+                            marginRight: 0
                           }}
                           onMouseOver={e => {
                             e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 4px 15px rgba(220,53,69,0.13)';
+                            e.target.style.boxShadow = '0 4px 15px rgba(39,201,122,0.13)';
                           }}
                           onMouseOut={e => {
                             e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 2px 8px rgba(220,53,69,0.08)';
+                            e.target.style.boxShadow = '0 2px 8px rgba(39,201,122,0.08)';
                           }}
                         >
-                          Delete
+                          View Logs
                         </button>
-                      )}
+                        {role === 'super_admin' && (
+                          <button
+                            onClick={() => handleDeleteStove(stove)}
+                            style={{
+                              padding: '8px 18px',
+                              borderRadius: '8px',
+                              background: 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '0.98rem',
+                              fontWeight: '600',
+                              transition: 'all 0.2s',
+                              boxShadow: '0 2px 8px rgba(220,53,69,0.08)'
+                            }}
+                            onMouseOver={e => {
+                              e.target.style.transform = 'translateY(-2px)';
+                              e.target.style.boxShadow = '0 4px 15px rgba(220,53,69,0.13)';
+                            }}
+                            onMouseOut={e => {
+                              e.target.style.transform = 'translateY(0)';
+                              e.target.style.boxShadow = '0 2px 8px rgba(220,53,69,0.08)';
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -494,50 +513,64 @@ function EditLogModal({ log, onClose, onSubmit }) {
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0,0,0,0.7)',
-      zIndex: 2001,
+      background: 'rgba(0,0,0,0.18)',
+      zIndex: 3000, // higher than view logs modal
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '20px'
+      padding: 20
     }}>
       <form onSubmit={handleSubmit} style={{
-        background: 'rgba(40, 40, 40, 0.95)',
+        background: '#fff',
         borderRadius: 20,
-        minWidth: 400,
+        minWidth: 350,
         maxWidth: '95vw',
         maxHeight: '90vh',
         overflow: 'auto',
         position: 'relative',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        padding: 32
+        boxShadow: '0 8px 32px rgba(74,144,226,0.13)',
+        border: '1px solid #e2e8f0',
+        padding: 36,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 18
       }}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
-          <h3 style={{color:'#fff',margin:0,fontSize:'1.5rem',fontWeight:600}}>Edit Log</h3>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <h3 style={{color:'#357ABD',margin:0,fontSize:'1.5rem',fontWeight:700}}>Edit Log</h3>
           <button type="button" onClick={onClose} style={{
-            background: 'rgba(255,255,255,0.1)',
-            border: 'none',
-            color: '#fff',
-            padding: '10px 16px',
+            background: '#f7faff',
+            border: '1px solid #e2e8f0',
+            color: '#357ABD',
+            padding: '8px 16px',
             borderRadius: '8px',
             cursor: 'pointer',
             fontSize: '1rem',
-            fontWeight: '500',
-            transition: 'all 0.3s ease'
+            fontWeight: '600',
+            transition: 'all 0.2s',
           }}
-          onMouseOver={e => e.target.style.background = 'rgba(255,255,255,0.2)'}
-          onMouseOut={e => e.target.style.background = 'rgba(255,255,255,0.1)'}
+          onMouseOver={e => e.target.style.background = '#e3f0ff'}
+          onMouseOut={e => e.target.style.background = '#f7faff'}
           >Close</button>
         </div>
-        <div><label style={{color:'#fff'}}>Date: <input type="date" name="date" value={form.date?.slice(0,10) || ''} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Start Time: <input type="time" name="start_time" value={form.start_time} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>End Time: <input type="time" name="end_time" value={form.end_time} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Duration (min): <input name="duration" value={form.duration} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Cooking Time (min): <input name="cooking_time" value={form.cooking_time} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Wattage (W): <input name="wattage_W" value={form.wattage_W} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <button type="submit" style={{marginTop:18,padding:'12px 28px',borderRadius:8,background:'linear-gradient(135deg, #ffc107 0%, #ffb300 100%)',color:'#000',border:'none',fontWeight:600,fontSize:'1rem',cursor:'pointer',boxShadow:'0 4px 15px rgba(255,193,7,0.2)',transition:'all 0.3s ease'}}>Save</button>
+        <div><label style={{color:'#4a5568',fontWeight:500}}>Date: <input type="date" name="date" value={form.date?.slice(0,10) || ''} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
+        <div><label style={{color:'#4a5568',fontWeight:500}}>Start Time: <input type="time" name="start_time" value={form.start_time} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
+        <div><label style={{color:'#4a5568',fontWeight:500}}>End Time: <input type="time" name="end_time" value={form.end_time} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
+        <div><label style={{color:'#4a5568',fontWeight:500}}>Duration (min): <input name="duration" value={form.duration} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
+        <div><label style={{color:'#4a5568',fontWeight:500}}>Cooking Time (min): <input name="cooking_time" value={form.cooking_time} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
+        <div><label style={{color:'#4a5568',fontWeight:500}}>Wattage (W): <input name="wattage_W" value={form.wattage_W} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
+        <button type="submit" style={{
+          marginTop: 12,
+          padding: '14px 32px',
+          borderRadius: 10,
+          background: 'linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)',
+          color: '#fff',
+          border: 'none',
+          fontWeight: 600,
+          fontSize: '1rem',
+          cursor: 'pointer',
+          boxShadow: '0 4px 15px rgba(74,144,226,0.13)',
+          transition: 'all 0.3s ease'
+        }}>Save</button>
       </form>
     </div>
   );

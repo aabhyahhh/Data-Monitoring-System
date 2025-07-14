@@ -43,7 +43,22 @@ router.get('/stoves/logs/last24h/count', verifyToken, async (req, res) => {
     const stoves = await StoveData.find({}, 'logs');
     let count = 0;
     stoves.forEach(stove => {
-      count += stove.logs.filter(log => new Date(log.date) >= since).length;
+      stove.logs.forEach(log => {
+        // Combine date and start_time to get the actual datetime
+        let logDateTime;
+        if (log.date && log.start_time) {
+          // log.date may be a Date or a string
+          const datePart = (log.date instanceof Date)
+            ? log.date.toISOString().slice(0, 10)
+            : (typeof log.date === 'string' ? log.date.slice(0, 10) : '');
+          logDateTime = new Date(`${datePart}T${log.start_time}`);
+        } else if (log.date) {
+          logDateTime = new Date(log.date);
+        }
+        if (logDateTime && logDateTime >= since) {
+          count++;
+        }
+      });
     });
     res.json({ count });
   } catch (err) {
