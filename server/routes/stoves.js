@@ -36,6 +36,50 @@ router.get('/stoves/by-stoveid/:stove_id', verifyToken, async (req, res) => {
   }
 });
 
+// Add this endpoint to count cooking sessions in the last 24 hours
+router.get('/stoves/logs/last24h/count', verifyToken, async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const stoves = await StoveData.find({}, 'logs');
+    let count = 0;
+    stoves.forEach(stove => {
+      stove.logs.forEach(log => {
+        // Combine date and start_time to get the actual datetime
+        let logDateTime;
+        if (log.date && log.start_time) {
+          // log.date may be a Date or a string
+          const datePart = (log.date instanceof Date)
+            ? log.date.toISOString().slice(0, 10)
+            : (typeof log.date === 'string' ? log.date.slice(0, 10) : '');
+          logDateTime = new Date(`${datePart}T${log.start_time}`);
+        } else if (log.date) {
+          logDateTime = new Date(log.date);
+        }
+        if (logDateTime && logDateTime >= since) {
+          count++;
+        }
+      });
+    });
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Add this endpoint to get total cooking minutes
+router.get('/stoves/logs/total-cooking-minutes', verifyToken, async (req, res) => {
+  try {
+    const stoves = await StoveData.find({}, 'logs');
+    let totalMinutes = 0;
+    stoves.forEach(stove => {
+      totalMinutes += stove.logs.reduce((sum, log) => sum + (log.cooking_time || 0), 0);
+    });
+    res.json({ totalMinutes });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /stoves - add new stove (super_admin only)
 router.post('/stoves', verifyToken, requireRole('super_admin'), async (req, res) => {
   try {

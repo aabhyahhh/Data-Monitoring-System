@@ -47,11 +47,41 @@ export async function updateStove(id, data) {
   return res.json();
 }
 
+export async function deleteStove(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/api/stoves/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!res.ok) throw new Error('Failed to delete stove');
+  return res.json();
+}
+
 export async function getLogsByStoveId(stove_id) {
   const token = localStorage.getItem('token');
   const res = await fetch(`${API_URL}/api/stoves/by-stoveid/${stove_id}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   if (!res.ok) throw new Error('Failed to fetch logs');
+  return res.json();
+}
+
+export async function getCookingSessionsLast24h() {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/api/stoves/logs/last24h/count`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch cooking sessions count');
+  return res.json();
+}
+
+export async function getTotalCookingMinutes() {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/api/stoves/logs/total-cooking-minutes`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch total cooking minutes');
   return res.json();
 } 
