@@ -18,7 +18,7 @@ function formatTime(timeStr) {
 }
 
 export default function UsersPage() {
-  const { role } = useAuth();
+  const { role, isTokenValid } = useAuth();
   const [stoves, setStoves] = useState([]);
   const [error, setError] = useState('');
   const [selectedStove, setSelectedStove] = useState(null);
@@ -27,23 +27,51 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editLog, setEditLog] = useState(null);
   const [selectedStoveId, setSelectedStoveId] = useState(null);
+  
+  // Loading states
+  const [isLoadingStoves, setIsLoadingStoves] = useState(true);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [isDeletingLog, setIsDeletingLog] = useState(false);
+  const [isEditingLog, setIsEditingLog] = useState(false);
+  const [isDeletingStove, setIsDeletingStove] = useState(false);
+  const [deletingLogId, setDeletingLogId] = useState(null);
+  const [deletingStoveId, setDeletingStoveId] = useState(null);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if token is valid before making API calls
+    if (!isTokenValid()) {
+      console.log('Token is invalid, redirecting to login');
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      window.location.href = '/login';
+      return;
+    }
+    
+    setIsLoadingStoves(true);
     getStoves()
       .then(setStoves)
-      .catch(() => setError('Failed to fetch stoves'));
-  }, []);
+      .catch(() => setError('Failed to fetch stoves'))
+      .finally(() => setIsLoadingStoves(false));
+  }, [isTokenValid]);
 
   async function handleViewLogs(stove) {
+    console.log('Viewing logs for stove:', stove.stove_id);
     setSelectedStove(stove);
     setSelectedStoveId(stove.stove_id);
     setShowModal(true);
+    setIsLoadingLogs(true);
     try {
       const data = await getLogsByStoveId(stove.stove_id);
+      console.log('Fetched logs:', data.logs?.length || 0);
+      console.log('Sample log:', data.logs?.[0]);
       setLogs(data.logs || []);
-    } catch {
+    } catch (error) {
+      console.error('Error fetching logs:', error);
       setLogs([]);
+    } finally {
+      setIsLoadingLogs(false);
     }
   }
 
@@ -57,13 +85,16 @@ export default function UsersPage() {
     setShowForm(true);
   }
   async function handleFormSubmit(data) {
+    console.log('UsersPage handleFormSubmit called with:', data);
     try {
       await addStove(data);
+      console.log('Stove added successfully');
       setShowForm(false);
       // Refresh stove list
       const updated = await getStoves();
       setStoves(updated);
     } catch (err) {
+      console.error('Error in handleFormSubmit:', err);
       if (err.message.includes('403')) navigate('/unauthorized');
       else alert('Failed to add stove');
     }
@@ -73,65 +104,186 @@ export default function UsersPage() {
     setEditLog(log);
   }
   async function handleEditLogSubmit(updatedLog) {
+    // Prevent multiple edits
+    if (isEditingLog) return;
+    
+    setIsEditingLog(true);
+    
     try {
+      console.log('Editing log in stove:', selectedStove.stove_id);
+      console.log('Original log:', editLog);
+      console.log('Updated log:', updatedLog);
+      
       // Replace the edited log in the logs array
       const newLogs = logs.map(log => log === editLog ? updatedLog : log);
       await updateStove(selectedStove._id, { ...selectedStove, logs: newLogs });
       setEditLog(null);
+      
       // Refresh logs from backend
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/stoves/${selectedStove._id}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/stoves/${selectedStove._id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       setLogs(data.logs || []);
+      console.log('Log updated successfully');
     } catch (err) {
+      console.error('Error updating log:', err);
       if (err.message.includes('403')) navigate('/unauthorized');
       else alert('Failed to update log');
+    } finally {
+      setIsEditingLog(false);
     }
   }
 
   async function handleDeleteLog(logToDelete) {
     if (!window.confirm('Delete this log entry? This cannot be undone.')) return;
+    
+    // Prevent multiple deletions
+    if (isDeletingLog) return;
+    
+    setIsDeletingLog(true);
+    setDeletingLogId(`${logToDelete.date}_${logToDelete.start_time}_${logToDelete.end_time}`);
+    
     try {
-      // Find all logs for this stoveDocId
-      const stoveDocId = logToDelete.stoveDocId;
-      // Fetch the current logs for this document
+      console.log('Deleting log from stove:', selectedStove.stove_id);
+      console.log('Log to delete:', logToDelete);
+      
+      // Get all stove documents with this stove_id
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/stoves/${stoveDocId}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      
+      // First, get all stove documents with this stove_id
+      const allStovesRes = await fetch(`${API_URL}/api/stoves`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const stoveDoc = await res.json();
-      // Remove the log by matching all fields (date, start_time, end_time, duration, cooking_time, wattage_W)
-      const newLogs = stoveDoc.logs.filter(log =>
-        !(log.date === logToDelete.date &&
-          log.start_time === logToDelete.start_time &&
-          log.end_time === logToDelete.end_time &&
-          log.duration === logToDelete.duration &&
-          log.cooking_time === logToDelete.cooking_time &&
-          log.wattage_W === logToDelete.wattage_W)
-      );
-      await updateStove(stoveDocId, { ...stoveDoc, logs: newLogs });
+      
+      if (!allStovesRes.ok) {
+        throw new Error(`HTTP ${allStovesRes.status}: ${allStovesRes.statusText}`);
+      }
+      
+      const allStoves = await allStovesRes.json();
+      const stovesWithSameId = allStoves.filter(stove => stove.stove_id === selectedStove.stove_id);
+      
+      console.log(`Found ${stovesWithSameId.length} stove documents with stove_id: ${selectedStove.stove_id}`);
+      
+      // Delete the log from ALL stove documents with this stove_id
+      for (const stove of stovesWithSameId) {
+        console.log(`Processing stove document: ${stove._id}`);
+        
+        const res = await fetch(`${API_URL}/api/stoves/${stove._id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+          console.error(`Failed to fetch stove ${stove._id}:`, res.status);
+          continue;
+        }
+        
+        const stoveDoc = await res.json();
+        console.log(`Stove ${stove._id} has ${stoveDoc.logs.length} logs`);
+        
+        // Remove the log by matching all fields
+        const newLogs = stoveDoc.logs.filter(log =>
+          !(log.date === logToDelete.date &&
+            log.start_time === logToDelete.start_time &&
+            log.end_time === logToDelete.end_time &&
+            log.duration === logToDelete.duration &&
+            log.cooking_time === logToDelete.cooking_time &&
+            log.wattage_W === logToDelete.wattage_W)
+        );
+        
+        if (newLogs.length !== stoveDoc.logs.length) {
+          console.log(`Deleting log from stove ${stove._id} (${stoveDoc.logs.length} -> ${newLogs.length} logs)`);
+          await updateStove(stove._id, { ...stoveDoc, logs: newLogs });
+        }
+      }
+      
+      console.log('Log deletion completed');
+      
       // Refresh logs in modal
+      console.log('Refreshing logs for stove:', selectedStoveId);
       const data = await getLogsByStoveId(selectedStoveId);
+      console.log('Refreshed logs count:', data.logs?.length || 0);
       setLogs(data.logs || []);
+      
     } catch (err) {
+      console.error('Error deleting log:', err);
       alert('Failed to delete log');
+    } finally {
+      setIsDeletingLog(false);
+      setDeletingLogId(null);
     }
   }
 
   async function handleDeleteStove(stove) {
     if (!window.confirm(`Delete stove ${stove.stove_id} at ${stove.location}? This cannot be undone.`)) return;
+    
+    // Prevent multiple deletions
+    if (isDeletingStove) return;
+    
+    setIsDeletingStove(true);
+    setDeletingStoveId(stove._id);
+    
     try {
       await deleteStove(stove._id);
-      setStoves(stoves.filter(s => s._id !== stove._id));
+      console.log('Stove deleted successfully, refreshing stove list...');
+      
+      // Refresh the entire stove list from the server
+      const updatedStoves = await getStoves();
+      setStoves(updatedStoves);
+      console.log('Stove list refreshed, new count:', updatedStoves.length);
+      
     } catch (err) {
+      console.error('Error deleting stove:', err);
       alert('Failed to delete stove');
+    } finally {
+      setIsDeletingStove(false);
+      setDeletingStoveId(null);
     }
   }
 
+  // Loading spinner component
+  const LoadingSpinner = ({ size = 20, color = '#357ABD' }) => (
+    <div style={{
+      display: 'inline-block',
+      width: size,
+      height: size,
+      border: `2px solid ${color}20`,
+      borderTop: `2px solid ${color}`,
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite'
+    }} />
+  );
+
+  // Add CSS animation for spinner
+  const spinnerStyle = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+
   if (error) return <div>{error}</div>;
-  if (!stoves.length) return <div>Loading...</div>;
+  if (isLoadingStoves) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f7faff'
+      }}>
+        <style>{spinnerStyle}</style>
+        <div style={{ textAlign: 'center' }}>
+          <LoadingSpinner size={40} />
+          <div style={{ marginTop: 16, color: '#357ABD', fontSize: '1.1rem' }}>Loading stoves...</div>
+        </div>
+      </div>
+    );
+  }
+  if (!stoves.length) return <div>No stoves found</div>;
 
   // Group stoves by unique stove_id
   const uniqueStoves = Object.values(stoves.reduce((acc, stove) => {
@@ -286,55 +438,87 @@ export default function UsersPage() {
                       <div style={{display:'flex',justifyContent:'center',gap:'16px'}}>
                         <button
                           onClick={() => handleViewLogs(stove)}
+                          disabled={isLoadingLogs}
                           style={{
                             padding: '8px 18px',
                             borderRadius: '8px',
-                            background: 'linear-gradient(90deg, #27c97a 0%, #43e97b 100%)',
+                            background: isLoadingLogs
+                              ? 'linear-gradient(90deg, #6c757d 0%, #5a6268 100%)'
+                              : 'linear-gradient(90deg, #27c97a 0%, #43e97b 100%)',
                             color: '#fff',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: isLoadingLogs ? 'not-allowed' : 'pointer',
                             fontSize: '0.98rem',
                             fontWeight: '600',
                             transition: 'all 0.2s',
                             boxShadow: '0 2px 8px rgba(39,201,122,0.08)',
-                            marginRight: 0
+                            marginRight: 0,
+                            opacity: isLoadingLogs ? 0.7 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
                           }}
                           onMouseOver={e => {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 4px 15px rgba(39,201,122,0.13)';
+                            if (!isLoadingLogs) {
+                              e.target.style.transform = 'translateY(-2px)';
+                              e.target.style.boxShadow = '0 4px 15px rgba(39,201,122,0.13)';
+                            }
                           }}
                           onMouseOut={e => {
                             e.target.style.transform = 'translateY(0)';
                             e.target.style.boxShadow = '0 2px 8px rgba(39,201,122,0.08)';
                           }}
                         >
-                          View Logs
+                          {isLoadingLogs ? (
+                            <>
+                              <LoadingSpinner size={14} color="#fff" />
+                              Loading...
+                            </>
+                          ) : (
+                            'View Logs'
+                          )}
                         </button>
                         {role === 'super_admin' && (
                           <button
                             onClick={() => handleDeleteStove(stove)}
+                            disabled={isDeletingStove && deletingStoveId === stove._id}
                             style={{
                               padding: '8px 18px',
                               borderRadius: '8px',
-                              background: 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)',
+                              background: isDeletingStove && deletingStoveId === stove._id
+                                ? 'linear-gradient(90deg, #6c757d 0%, #5a6268 100%)'
+                                : 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)',
                               color: '#fff',
                               border: 'none',
-                              cursor: 'pointer',
+                              cursor: isDeletingStove && deletingStoveId === stove._id ? 'not-allowed' : 'pointer',
                               fontSize: '0.98rem',
                               fontWeight: '600',
                               transition: 'all 0.2s',
-                              boxShadow: '0 2px 8px rgba(220,53,69,0.08)'
+                              boxShadow: '0 2px 8px rgba(220,53,69,0.08)',
+                              opacity: isDeletingStove && deletingStoveId === stove._id ? 0.7 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
                             }}
                             onMouseOver={e => {
-                              e.target.style.transform = 'translateY(-2px)';
-                              e.target.style.boxShadow = '0 4px 15px rgba(220,53,69,0.13)';
+                              if (!isDeletingStove || deletingStoveId !== stove._id) {
+                                e.target.style.transform = 'translateY(-2px)';
+                                e.target.style.boxShadow = '0 4px 15px rgba(220,53,69,0.13)';
+                              }
                             }}
                             onMouseOut={e => {
                               e.target.style.transform = 'translateY(0)';
                               e.target.style.boxShadow = '0 2px 8px rgba(220,53,69,0.08)';
                             }}
                           >
-                            Delete
+                            {isDeletingStove && deletingStoveId === stove._id ? (
+                              <>
+                                <LoadingSpinner size={14} color="#fff" />
+                                Deleting...
+                              </>
+                            ) : (
+                              'Delete'
+                            )}
                           </button>
                         )}
                       </div>
@@ -394,6 +578,21 @@ export default function UsersPage() {
                   border: '1px solid #f0f0f0',
                   margin: '32px 0',
                 }}>
+                  {isLoadingLogs ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '40px',
+                      minHeight: '200px'
+                    }}>
+                      <style>{spinnerStyle}</style>
+                      <div style={{ textAlign: 'center' }}>
+                        <LoadingSpinner size={30} />
+                        <div style={{ marginTop: 12, color: '#357ABD', fontSize: '1rem' }}>Loading logs...</div>
+                      </div>
+                    </div>
+                  ) : (
                   <table style={{width: '100%', borderCollapse: 'collapse'}}>
                     <thead>
                       <tr style={{background: 'linear-gradient(90deg, #e3f0ff 0%, #f7faff 100%)'}}>
@@ -434,51 +633,87 @@ export default function UsersPage() {
                               <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
                                 <button
                                   onClick={() => handleEditLog(log)}
+                                  disabled={isEditingLog}
                                   style={{
                                     padding: '6px 12px',
                                     borderRadius: '6px',
-                                    background: 'linear-gradient(90deg, #ffc107 0%, #ffb300 100%)',
-                                    color: '#000',
+                                    background: isEditingLog
+                                      ? 'linear-gradient(90deg, #6c757d 0%, #5a6268 100%)'
+                                      : 'linear-gradient(90deg, #ffc107 0%, #ffb300 100%)',
+                                    color: isEditingLog ? '#fff' : '#000',
                                     border: 'none',
-                                    cursor: 'pointer',
+                                    cursor: isEditingLog ? 'not-allowed' : 'pointer',
                                     fontSize: '0.9rem',
                                     fontWeight: '600',
                                     transition: 'all 0.2s',
+                                    opacity: isEditingLog ? 0.7 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    minWidth: '50px',
+                                    justifyContent: 'center'
                                   }}
                                   onMouseOver={e => {
-                                    e.target.style.transform = 'translateY(-1px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(255, 193, 7, 0.13)';
+                                    if (!isEditingLog) {
+                                      e.target.style.transform = 'translateY(-1px)';
+                                      e.target.style.boxShadow = '0 4px 12px rgba(255, 193, 7, 0.13)';
+                                    }
                                   }}
                                   onMouseOut={e => {
                                     e.target.style.transform = 'translateY(0)';
                                     e.target.style.boxShadow = 'none';
                                   }}
                                 >
-                                  Edit
+                                  {isEditingLog ? (
+                                    <>
+                                      <LoadingSpinner size={12} color={isEditingLog ? "#fff" : "#000"} />
+                                      Edit
+                                    </>
+                                  ) : (
+                                    'Edit'
+                                  )}
                                 </button>
                                 <button
                                   onClick={() => handleDeleteLog(log)}
+                                  disabled={isDeletingLog && deletingLogId === `${log.date}_${log.start_time}_${log.end_time}`}
                                   style={{
                                     padding: '6px 12px',
                                     borderRadius: '6px',
-                                    background: 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)',
+                                    background: isDeletingLog && deletingLogId === `${log.date}_${log.start_time}_${log.end_time}`
+                                      ? 'linear-gradient(90deg, #6c757d 0%, #5a6268 100%)'
+                                      : 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)',
                                     color: '#fff',
                                     border: 'none',
-                                    cursor: 'pointer',
+                                    cursor: isDeletingLog && deletingLogId === `${log.date}_${log.start_time}_${log.end_time}` ? 'not-allowed' : 'pointer',
                                     fontSize: '0.9rem',
                                     fontWeight: '600',
                                     transition: 'all 0.2s',
+                                    opacity: isDeletingLog && deletingLogId === `${log.date}_${log.start_time}_${log.end_time}` ? 0.7 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    minWidth: '60px',
+                                    justifyContent: 'center'
                                   }}
                                   onMouseOver={e => {
-                                    e.target.style.transform = 'translateY(-1px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.13)';
+                                    if (!isDeletingLog || deletingLogId !== `${log.date}_${log.start_time}_${log.end_time}`) {
+                                      e.target.style.transform = 'translateY(-1px)';
+                                      e.target.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.13)';
+                                    }
                                   }}
                                   onMouseOut={e => {
                                     e.target.style.transform = 'translateY(0)';
                                     e.target.style.boxShadow = 'none';
                                   }}
                                 >
-                                  Delete
+                                  {isDeletingLog && deletingLogId === `${log.date}_${log.start_time}_${log.end_time}` ? (
+                                    <>
+                                      <LoadingSpinner size={12} color="#fff" />
+                                      Del
+                                    </>
+                                  ) : (
+                                    'Delete'
+                                  )}
                                 </button>
                               </div>
                             </td>
@@ -487,6 +722,7 @@ export default function UsersPage() {
                       ))}
                     </tbody>
                   </table>
+                  )}
                 </div>
               </div>
             </div>
@@ -498,13 +734,60 @@ export default function UsersPage() {
 }
 
 function EditLogModal({ log, onClose, onSubmit }) {
-  const [form, setForm] = useState({ ...log });
+  // Convert 24-hour time to 12-hour with AM/PM
+  const convertTo12Hour = (time24) => {
+    if (!time24) return { time: '', ampm: 'AM' };
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return { time: `${hour12.toString().padStart(2, '0')}:${minutes}`, ampm };
+  };
+
+  const startTime12 = convertTo12Hour(log.start_time);
+  const endTime12 = convertTo12Hour(log.end_time);
+
+  const [form, setForm] = useState({ 
+    ...log, 
+    start_time: startTime12.time,
+    start_ampm: startTime12.ampm,
+    end_time: endTime12.time,
+    end_ampm: endTime12.ampm
+  });
+
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
+
   function handleSubmit(e) {
     e.preventDefault();
-    onSubmit(form);
+    
+    // Convert AM/PM times back to 24-hour format
+    const convertTo24Hour = (time, ampm) => {
+      if (!time) return time;
+      const [hours, minutes] = time.split(':');
+      let hour = parseInt(hours);
+      
+      if (ampm === 'PM' && hour !== 12) {
+        hour += 12;
+      } else if (ampm === 'AM' && hour === 12) {
+        hour = 0;
+      }
+      
+      return `${hour.toString().padStart(2, '0')}:${minutes}`;
+    };
+    
+    const processedForm = {
+      ...form,
+      start_time: convertTo24Hour(form.start_time, form.start_ampm),
+      end_time: convertTo24Hour(form.end_time, form.end_ampm)
+    };
+    
+    // Remove AM/PM fields from the final form object
+    delete processedForm.start_ampm;
+    delete processedForm.end_ampm;
+    
+    onSubmit(processedForm);
   }
   return (
     <div style={{
@@ -552,12 +835,167 @@ function EditLogModal({ log, onClose, onSubmit }) {
           onMouseOut={e => e.target.style.background = '#f7faff'}
           >Close</button>
         </div>
-        <div><label style={{color:'#4a5568',fontWeight:500}}>Date: <input type="date" name="date" value={form.date?.slice(0,10) || ''} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
-        <div><label style={{color:'#4a5568',fontWeight:500}}>Start Time: <input type="time" name="start_time" value={form.start_time} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
-        <div><label style={{color:'#4a5568',fontWeight:500}}>End Time: <input type="time" name="end_time" value={form.end_time} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
-        <div><label style={{color:'#4a5568',fontWeight:500}}>Duration (min): <input name="duration" value={form.duration} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
-        <div><label style={{color:'#4a5568',fontWeight:500}}>Cooking Time (min): <input name="cooking_time" value={form.cooking_time} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
-        <div><label style={{color:'#4a5568',fontWeight:500}}>Wattage (W): <input name="wattage_W" value={form.wattage_W} onChange={handleChange} required style={{margin:'8px',padding:'10px',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc',color:'#222',fontSize:'1rem',outline:'none'}} /></label></div>
+        <div style={{marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,display:'block',marginBottom:'4px'}}>Date:</label>
+          <input 
+            type="date" 
+            name="date" 
+            value={form.date?.slice(0,10) || ''} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #e2e8f0',
+              background:'#f8fafc',
+              color:'#222',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
+        <div style={{marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,display:'block',marginBottom:'4px'}}>Start Time:</label>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <input 
+              type="time" 
+              name="start_time" 
+              value={form.start_time} 
+              onChange={handleChange} 
+              required 
+              style={{
+                flex:1,
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #e2e8f0',
+                background:'#f8fafc',
+                color:'#222',
+                fontSize:'1rem',
+                outline:'none'
+              }} 
+            />
+            <select 
+              name="start_ampm" 
+              value={form.start_ampm || 'AM'} 
+              onChange={handleChange}
+              style={{
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #e2e8f0',
+                background:'#f8fafc',
+                color:'#222',
+                fontSize:'1rem',
+                outline:'none',
+                minWidth:'60px'
+              }}
+            >
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,display:'block',marginBottom:'4px'}}>End Time:</label>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <input 
+              type="time" 
+              name="end_time" 
+              value={form.end_time} 
+              onChange={handleChange} 
+              required 
+              style={{
+                flex:1,
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #e2e8f0',
+                background:'#f8fafc',
+                color:'#222',
+                fontSize:'1rem',
+                outline:'none'
+              }} 
+            />
+            <select 
+              name="end_ampm" 
+              value={form.end_ampm || 'AM'} 
+              onChange={handleChange}
+              style={{
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #e2e8f0',
+                background:'#f8fafc',
+                color:'#222',
+                fontSize:'1rem',
+                outline:'none',
+                minWidth:'60px'
+              }}
+            >
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,display:'block',marginBottom:'4px'}}>Duration (min):</label>
+          <input 
+            name="duration" 
+            value={form.duration} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #e2e8f0',
+              background:'#f8fafc',
+              color:'#222',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
+        <div style={{marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,display:'block',marginBottom:'4px'}}>Cooking Time (min):</label>
+          <input 
+            name="cooking_time" 
+            value={form.cooking_time} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #e2e8f0',
+              background:'#f8fafc',
+              color:'#222',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
+        <div style={{marginBottom:8}}>
+          <label style={{color:'#4a5568',fontWeight:500,display:'block',marginBottom:'4px'}}>Wattage (W):</label>
+          <input 
+            name="wattage_W" 
+            value={form.wattage_W} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #e2e8f0',
+              background:'#f8fafc',
+              color:'#222',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
         <button type="submit" style={{
           marginTop: 12,
           padding: '14px 32px',
