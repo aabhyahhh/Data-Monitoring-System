@@ -23,18 +23,19 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     try {
       const data = await apiLogin(username, password);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', data.role);
+      login(data.token, data.role);
       alert('Login successful!');
       navigate('/dashboard');
     } catch (err) {
-      setError('Login failed');
+      console.error('Login error:', err);
+      setError('Login failed: ' + (err.message || 'Unknown error'));
     }
   }
 
@@ -108,11 +109,20 @@ function Dashboard() {
   const [totalMinutes, setTotalMinutes] = useState(null);
   const navigate = useNavigate();
   const [stoves, setStoves] = useState([]);
+  
+  // Loading states
+  const [isLoadingStoves, setIsLoadingStoves] = useState(true);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [isDeletingLog, setIsDeletingLog] = useState(false);
+  const [isEditingLog, setIsEditingLog] = useState(false);
+  const [deletingLogId, setDeletingLogId] = useState(null);
+  
   useEffect(() => {
+    setIsLoadingStoves(true);
     getStoves().then(stoves => {
       setStoves(stoves);
       setStovesCount(Array.isArray(stoves) ? stoves.length : 0);
-    });
+    }).finally(() => setIsLoadingStoves(false));
     getCookingSessionsLast24h().then(res => setSessions24h(res.count));
     getTotalCookingMinutes().then(res => setTotalMinutes(res.totalMinutes));
   }, []);
@@ -128,11 +138,14 @@ function Dashboard() {
     setSelectedStove(stove);
     setSelectedStoveId(stove.stove_id);
     setShowModal(true);
+    setIsLoadingLogs(true);
     try {
       const data = await getLogsByStoveId(stove.stove_id);
       setLogs(data.logs || []);
     } catch {
       setLogs([]);
+    } finally {
+      setIsLoadingLogs(false);
     }
   }
 
@@ -146,13 +159,16 @@ function Dashboard() {
     setShowForm(true);
   }
   async function handleFormSubmit(data) {
+    console.log('Dashboard handleFormSubmit called with:', data);
     try {
       await addStove(data);
+      console.log('Stove added successfully');
       setShowForm(false);
       // Refresh stove list
       const updated = await getStoves();
       setStovesCount(Array.isArray(updated) ? updated.length : 0);
     } catch (err) {
+      console.error('Error in handleFormSubmit:', err);
       if (err.message.includes('403')) navigate('/unauthorized');
       else alert('Failed to add stove');
     }
@@ -162,6 +178,10 @@ function Dashboard() {
     setEditLog(log);
   }
   async function handleEditLogSubmit(updatedLog) {
+    if (isEditingLog) return;
+    
+    setIsEditingLog(true);
+    
     try {
       // Replace the edited log in the logs array
       const newLogs = logs.map(log => log === editLog ? updatedLog : log);
@@ -169,7 +189,8 @@ function Dashboard() {
       setEditLog(null);
       // Refresh logs from backend
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/stoves/${selectedStove._id}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/stoves/${selectedStove._id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -177,16 +198,24 @@ function Dashboard() {
     } catch (err) {
       if (err.message.includes('403')) navigate('/unauthorized');
       else alert('Failed to update log');
+    } finally {
+      setIsEditingLog(false);
     }
   }
 
   async function handleDeleteLog(logToDelete) {
+    if (isDeletingLog) return;
+    
+    setIsDeletingLog(true);
+    setDeletingLogId(`${logToDelete.date}_${logToDelete.start_time}_${logToDelete.end_time}`);
+    
     try {
       const newLogs = logs.filter(log => log !== logToDelete);
       await updateStove(selectedStove._id, { ...selectedStove, logs: newLogs });
       // Refresh logs from backend
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/stoves/${selectedStove._id}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/stoves/${selectedStove._id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -194,6 +223,9 @@ function Dashboard() {
     } catch (err) {
       if (err.message.includes('403')) navigate('/unauthorized');
       else alert('Failed to delete log');
+    } finally {
+      setIsDeletingLog(false);
+      setDeletingLogId(null);
     }
   }
 
@@ -461,13 +493,60 @@ function Dashboard() {
 }
 
 function EditLogModal({ log, onClose, onSubmit }) {
-  const [form, setForm] = useState({ ...log });
+  // Convert 24-hour time to 12-hour with AM/PM
+  const convertTo12Hour = (time24) => {
+    if (!time24) return { time: '', ampm: 'AM' };
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return { time: `${hour12.toString().padStart(2, '0')}:${minutes}`, ampm };
+  };
+
+  const startTime12 = convertTo12Hour(log.start_time);
+  const endTime12 = convertTo12Hour(log.end_time);
+
+  const [form, setForm] = useState({ 
+    ...log, 
+    start_time: startTime12.time,
+    start_ampm: startTime12.ampm,
+    end_time: endTime12.time,
+    end_ampm: endTime12.ampm
+  });
+
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
+
   function handleSubmit(e) {
     e.preventDefault();
-    onSubmit(form);
+    
+    // Convert AM/PM times back to 24-hour format
+    const convertTo24Hour = (time, ampm) => {
+      if (!time) return time;
+      const [hours, minutes] = time.split(':');
+      let hour = parseInt(hours);
+      
+      if (ampm === 'PM' && hour !== 12) {
+        hour += 12;
+      } else if (ampm === 'AM' && hour === 12) {
+        hour = 0;
+      }
+      
+      return `${hour.toString().padStart(2, '0')}:${minutes}`;
+    };
+    
+    const processedForm = {
+      ...form,
+      start_time: convertTo24Hour(form.start_time, form.start_ampm),
+      end_time: convertTo24Hour(form.end_time, form.end_ampm)
+    };
+    
+    // Remove AM/PM fields from the final form object
+    delete processedForm.start_ampm;
+    delete processedForm.end_ampm;
+    
+    onSubmit(processedForm);
   }
   return (
     <div style={{
@@ -513,12 +592,167 @@ function EditLogModal({ log, onClose, onSubmit }) {
           onMouseOut={e => e.target.style.background = 'rgba(255,255,255,0.1)'}
           >Close</button>
         </div>
-        <div><label style={{color:'#fff'}}>Date: <input type="date" name="date" value={form.date?.slice(0,10) || ''} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Start Time: <input type="time" name="start_time" value={form.start_time} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>End Time: <input type="time" name="end_time" value={form.end_time} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Duration (min): <input name="duration" value={form.duration} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Cooking Time (min): <input name="cooking_time" value={form.cooking_time} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
-        <div><label style={{color:'#fff'}}>Wattage (W): <input name="wattage_W" value={form.wattage_W} onChange={handleChange} required style={{margin:'8px',padding:'6px',borderRadius:4,border:'1px solid #444',background:'#222',color:'#fff'}} /></label></div>
+        <div style={{marginBottom:12}}>
+          <label style={{color:'#fff',display:'block',marginBottom:'4px',fontWeight:500}}>Date:</label>
+          <input 
+            type="date" 
+            name="date" 
+            value={form.date?.slice(0,10) || ''} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #444',
+              background:'#222',
+              color:'#fff',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{color:'#fff',display:'block',marginBottom:'4px',fontWeight:500}}>Start Time:</label>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <input 
+              type="time" 
+              name="start_time" 
+              value={form.start_time} 
+              onChange={handleChange} 
+              required 
+              style={{
+                flex:1,
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #444',
+                background:'#222',
+                color:'#fff',
+                fontSize:'1rem',
+                outline:'none'
+              }} 
+            />
+            <select 
+              name="start_ampm" 
+              value={form.start_ampm || 'AM'} 
+              onChange={handleChange}
+              style={{
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #444',
+                background:'#222',
+                color:'#fff',
+                fontSize:'1rem',
+                outline:'none',
+                minWidth:'60px'
+              }}
+            >
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{color:'#fff',display:'block',marginBottom:'4px',fontWeight:500}}>End Time:</label>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <input 
+              type="time" 
+              name="end_time" 
+              value={form.end_time} 
+              onChange={handleChange} 
+              required 
+              style={{
+                flex:1,
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #444',
+                background:'#222',
+                color:'#fff',
+                fontSize:'1rem',
+                outline:'none'
+              }} 
+            />
+            <select 
+              name="end_ampm" 
+              value={form.end_ampm || 'AM'} 
+              onChange={handleChange}
+              style={{
+                padding:'10px',
+                borderRadius:8,
+                border:'1px solid #444',
+                background:'#222',
+                color:'#fff',
+                fontSize:'1rem',
+                outline:'none',
+                minWidth:'60px'
+              }}
+            >
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{color:'#fff',display:'block',marginBottom:'4px',fontWeight:500}}>Duration (min):</label>
+          <input 
+            name="duration" 
+            value={form.duration} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #444',
+              background:'#222',
+              color:'#fff',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{color:'#fff',display:'block',marginBottom:'4px',fontWeight:500}}>Cooking Time (min):</label>
+          <input 
+            name="cooking_time" 
+            value={form.cooking_time} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #444',
+              background:'#222',
+              color:'#fff',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{color:'#fff',display:'block',marginBottom:'4px',fontWeight:500}}>Wattage (W):</label>
+          <input 
+            name="wattage_W" 
+            value={form.wattage_W} 
+            onChange={handleChange} 
+            required 
+            style={{
+              width:'100%',
+              padding:'10px',
+              borderRadius:8,
+              border:'1px solid #444',
+              background:'#222',
+              color:'#fff',
+              fontSize:'1rem',
+              outline:'none',
+              boxSizing:'border-box'
+            }} 
+          />
+        </div>
         <button type="submit" style={{marginTop:18,padding:'12px 28px',borderRadius:8,background:'linear-gradient(135deg, #ffc107 0%, #ffb300 100%)',color:'#000',border:'none',fontWeight:600,fontSize:'1rem',cursor:'pointer',boxShadow:'0 4px 15px rgba(255,193,7,0.2)',transition:'all 0.3s ease'}}>Save</button>
       </form>
     </div>
