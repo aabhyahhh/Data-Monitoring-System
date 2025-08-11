@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { login as apiLogin } from './services/api';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
@@ -9,7 +9,9 @@ import { getLogsByStoveId } from './services/api';
 import Unauthorized from './Unauthorized';
 import Sidebar from './components/Sidebar';
 import { FiUser, FiShoppingCart, FiDollarSign, FiBox, FiClock } from 'react-icons/fi';
-import UsersPage from './components/UsersPage';
+// Replace direct imports with lazy imports
+// import UsersPage from './components/UsersPage';
+const UsersPage = lazy(() => import('./components/UsersPage'));
 import { getCookingSessionsLast24h } from './services/api';
 import { getTotalCookingMinutes } from './services/api';
 import { FaFire } from 'react-icons/fa';
@@ -17,6 +19,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import marker from './assets/marker.png';
+import { getTotalLogsCount } from './services/api';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -105,7 +108,7 @@ function Login() {
 function Dashboard() {
   const { role } = useAuth();
   const [stovesCount, setStovesCount] = useState(null);
-  const [sessions24h, setSessions24h] = useState(null);
+  const [totalSessions, setTotalSessions] = useState(null);
   const [totalMinutes, setTotalMinutes] = useState(null);
   const navigate = useNavigate();
   const [stoves, setStoves] = useState([]);
@@ -117,15 +120,17 @@ function Dashboard() {
   const [isEditingLog, setIsEditingLog] = useState(false);
   const [deletingLogId, setDeletingLogId] = useState(null);
   
-  useEffect(() => {
-    setIsLoadingStoves(true);
-    getStoves().then(stoves => {
-      setStoves(stoves);
-      setStovesCount(Array.isArray(stoves) ? stoves.length : 0);
-    }).finally(() => setIsLoadingStoves(false));
-    getCookingSessionsLast24h().then(res => setSessions24h(res.count));
-    getTotalCookingMinutes().then(res => setTotalMinutes(res.totalMinutes));
-  }, []);
+ useEffect(() => {
+  setIsLoadingStoves(true);
+  getStoves().then(stoves => {
+    setStoves(stoves);
+    setStovesCount(Array.isArray(stoves) ? stoves.length : 0);
+  }).finally(() => setIsLoadingStoves(false));
+  
+  getCookingSessionsLast24h().then(res => setSessions24h(res.count));
+  getTotalLogsCount().then(res => setTotalSessions(res.totalCount));
+  getTotalCookingMinutes().then(res => setTotalMinutes(res.totalMinutes));
+}, []);
   const [error, setError] = useState('');
   const [selectedStove, setSelectedStove] = useState(null);
   const [logs, setLogs] = useState([]);
@@ -243,8 +248,8 @@ function Dashboard() {
       color: '#4A90E2'
     },
     {
-      label: 'Cooking Sessions in Last 24 Hours',
-      value: sessions24h === null ? '...' : sessions24h,
+      label: 'Total Cooking Sessions',
+      value: totalSessions === null ? '...' : totalSessions,
       sub: null,
       icon: <FiClock size={20} />,
       color: '#27AE60'
@@ -793,14 +798,18 @@ function App() {
           <Route path="/dashboard" element={
             <PrivateRoute>
               <AppLayout>
-              <Dashboard />
+                <Suspense fallback={<div>Loading...</div>}>
+                  <Dashboard />
+                </Suspense>
               </AppLayout>
             </PrivateRoute>
           } />
           <Route path="/users" element={
             <PrivateRoute>
               <AppLayout>
-                <UsersPage />
+                <Suspense fallback={<div>Loading...</div>}>
+                  <UsersPage />
+                </Suspense>
               </AppLayout>
             </PrivateRoute>
           } />

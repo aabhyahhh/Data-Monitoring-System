@@ -7,13 +7,13 @@ async function seedAdmin() {
     await mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
     const admin = await User.findOneAndUpdate(
       { username: 'admin' },
-      { password: 'test', role: 'super_admin' },
+      { password: 'd@t@', role: 'super_admin' },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     console.log('Seeded admin user:', admin);
     const viewer = await User.findOneAndUpdate(
       { username: 'viewer' },
-      { password: 'test', role: 'viewer' },
+      { password: 'c!bos', role: 'viewer' },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     console.log('Seeded viewer user:', viewer);

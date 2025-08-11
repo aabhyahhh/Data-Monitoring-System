@@ -118,4 +118,13 @@ export async function getTotalCookingMinutes() {
   });
   if (!res.ok) throw new Error('Failed to fetch total cooking minutes');
   return res.json();
+}
+
+export async function getTotalLogsCount() {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/api/stoves/logs/total-count`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch total logs count');
+  return res.json();
 } 

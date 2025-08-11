@@ -1,6 +1,7 @@
-import { NavLink } from 'react-router-dom';
-import { FiGrid, FiUser } from 'react-icons/fi';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { FiGrid, FiUser, FiLogOut } from 'react-icons/fi';
 import logo from '../assets/logo.png';
+import { useAuth } from '../context/AuthContext';
 
 const sidebarStyle = {
   width: '240px',
@@ -9,7 +10,7 @@ const sidebarStyle = {
   color: '#222',
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'flex-start',
+  alignItems: 'stretch', // changed from 'flex-start' to 'stretch'
   padding: '32px 0',
   position: 'fixed',
   top: 0,
@@ -17,7 +18,7 @@ const sidebarStyle = {
   boxShadow: '2px 0 12px rgba(0,0,0,0.08)',
   zIndex: 1000,
   borderRight: '1px solid #f0f0f0',
-  overflow: 'hidden',
+  overflowY: 'auto', // add vertical scroll
 };
 
 const logoStyle = {
@@ -64,12 +65,26 @@ const activeLinkStyle = {
   boxShadow: '0 2px 12px 0 rgba(74,144,226,0.07)',
 };
 
+const logoutButtonStyle = {
+  ...linkStyle,
+  background: 'linear-gradient(90deg, #e3f0ff 0%, #f7faff 100%)', // blue gradient
+  color: '#357ABD', // blue text
+  border: '1px solid #b3d1f7', // blue border
+  boxShadow: '0 2px 12px 0 rgba(53,122,189,0.07)', // blue shadow
+  display: 'flex',
+  alignItems: 'center',
+  gap: 16,
+  cursor: 'pointer',
+};
+
 export default function Sidebar() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   return (
     <nav style={sidebarStyle}>
       <div style={logoStyle}>
         <img src={logo} alt="Logo" style={logoImgStyle} />
-        <span>cibos</span>
+        <span>Cibos</span>
       </div>
       <NavLink
         to="/dashboard"
@@ -83,6 +98,17 @@ export default function Sidebar() {
       >
         <FiUser size={20} /> Users
       </NavLink>
+      <div style={{ width: '100%', borderTop: '1px solid #f0f0f0', margin: '16px 0' }} />
+      <button
+        style={{ ...logoutButtonStyle, width: '100%' }}
+        onClick={() => {
+          logout();
+          navigate('/login');
+        }}
+        tabIndex={0}
+      >
+        <FiLogOut size={20} /> Logout
+      </button>
     </nav>
   );
 } 
